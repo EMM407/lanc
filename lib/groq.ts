@@ -87,16 +87,18 @@ Please provide:
 };
 
 export async function generateWithGroq(messages: GroqMessage[]): Promise<string> {
-  // IMPORTANT: Make sure you have this environment variable set in your .env file
   const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY;
   
   if (!GROQ_API_KEY) {
-    throw new Error('Groq API key is missing. Please set EXPO_PUBLIC_GROQ_API_KEY in your environment variables.');
+    console.warn('Groq API key is missing. Falling back to mock response.');
+    return generateMockResponse(messages);
   }
 
   const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 
   try {
+    console.log('🤖 Calling Groq API with key:', GROQ_API_KEY?.substring(0, 10) + '...');
+    
     const response = await fetch(GROQ_API_URL, {
       method: 'POST',
       headers: {
@@ -104,7 +106,7 @@ export async function generateWithGroq(messages: GroqMessage[]): Promise<string>
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'llama3-8b-8192', // or 'mixtral-8x7b-32768' for more complex tasks
+        model: 'llama3-8b-8192',
         messages,
         temperature: 0.7,
         max_tokens: 2048,
@@ -114,6 +116,13 @@ export async function generateWithGroq(messages: GroqMessage[]): Promise<string>
     if (!response.ok) {
       const errorData = await response.json();
       console.error('Groq API error details:', errorData);
+      
+      // If API key is invalid, fall back to mock response
+      if (response.status === 401 || errorData.error?.code === 'invalid_api_key') {
+        console.warn('Invalid Groq API key, falling back to mock response');
+        return generateMockResponse(messages);
+      }
+      
       throw new Error(`Groq API error: ${response.status} ${response.statusText}`);
     }
 
@@ -121,6 +130,74 @@ export async function generateWithGroq(messages: GroqMessage[]): Promise<string>
     return data.choices[0]?.message?.content || '';
   } catch (error) {
     console.error('Error calling Groq API:', error);
-    throw new Error('Failed to generate content with AI');
+    
+    // Fall back to mock response on any error
+    console.warn('Groq API failed, falling back to mock response');
+    return generateMockResponse(messages);
   }
+}
+
+// Mock response generator for when Groq API is unavailable
+function generateMockResponse(messages: GroqMessage[]): string {
+  const userMessage = messages.find(m => m.role === 'user')?.content || '';
+  const systemMessage = messages.find(m => m.role === 'system')?.content || '';
+  
+  // Generate appropriate mock responses based on context
+  if (systemMessage.includes('email')) {
+    return generateMockEmail(userMessage);
+  } else if (systemMessage.includes('contract')) {
+    return generateMockContract(userMessage);
+  } else if (systemMessage.includes('invoice')) {
+    return generateMockInvoice(userMessage);
+  }
+  
+  return 'This is a mock response. Please configure a valid Groq API key to use AI features.';
+}
+
+function generateMockEmail(context: string): string {
+  return `Subject: Professional Follow-up
+
+Dear [Client Name],
+
+I hope this email finds you well. I wanted to reach out regarding our recent project collaboration.
+
+We truly appreciate the opportunity to work with you and your team. Your feedback and collaboration throughout the process have been invaluable.
+
+If you have any questions or need any additional information, please don't hesitate to reach out.
+
+Best regards,
+[Your Name]
+
+Note: This is a mock response. Please configure a valid Groq API key for AI-generated content.`;
+}
+
+function generateMockContract(context: string): string {
+  return `SERVICE AGREEMENT
+
+This Service Agreement ("Agreement") is entered into between [Your Company] and [Client Company].
+
+1. SCOPE OF WORK
+The service provider agrees to deliver professional services as outlined in the project specifications.
+
+2. PAYMENT TERMS
+Payment shall be made according to the agreed schedule and terms.
+
+3. DELIVERABLES
+All deliverables will be provided according to the project timeline.
+
+4. INTELLECTUAL PROPERTY
+All work product shall be owned by the client upon full payment.
+
+5. TERMINATION
+Either party may terminate this agreement with written notice.
+
+Note: This is a mock contract. Please configure a valid Groq API key for AI-generated legal content.`;
+}
+
+function generateMockInvoice(context: string): string {
+  return `Notes: Thank you for your business! We appreciate the opportunity to work with you on this project. All work has been completed to the highest standards and we look forward to future collaborations.
+
+Terms: Payment is due within 30 days of invoice date. Late payments may incur additional fees. Please remit payment to the address listed above.
+
+Note: This is mock content. Please configure a valid Groq API key for AI-generated invoice content.`;
 }
