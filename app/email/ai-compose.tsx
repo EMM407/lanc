@@ -161,12 +161,12 @@ export default function AIEmailComposerScreen() {
     setLoading(true);
     
     try {
-      // Ensure we have a valid sender name and email
-      const senderEmail = user?.email || 'noreply@resend.dev';
+      // Prepare sender information for EmailJS
+      const senderEmail = user?.email || 'noreply@businessmanager.com';
       const senderName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Business Manager';
       const fromAddress = `${senderName} <${senderEmail}>`;
       
-      // Send the actual email
+      // Send the email via EmailJS
       const emailResult = await sendEmail({
         to: formData.to,
         subject: formData.subject,
@@ -175,7 +175,6 @@ export default function AIEmailComposerScreen() {
       });
 
       if (!emailResult.success) {
-        // Show more detailed error information
         const errorMessage = emailResult.error || 'Failed to send email';
         console.error('Email send error:', emailResult.details);
         throw new Error(errorMessage);
@@ -193,7 +192,7 @@ export default function AIEmailComposerScreen() {
           user_id: user?.id,
         }]);
 
-      // Show success message with more details
+      // Show success message
       const successMessage = `Your email has been sent successfully to ${formData.to}`;
       const detailMessage = emailResult.messageId 
         ? `\n\nMessage ID: ${emailResult.messageId}\n\nThe recipient should receive your email shortly.`
@@ -204,19 +203,14 @@ export default function AIEmailComposerScreen() {
     } catch (error) {
       console.error('Error sending email:', error);
       
-      // Provide helpful error messages
       let errorMessage = 'Failed to send email. Please try again.';
       if (error instanceof Error) {
-        if (error.message.includes('API key') || error.message.includes('Invalid API key')) {
-          errorMessage = 'Email service configuration error. Please contact support.';
+        if (error.message.includes('Invalid') || error.message.includes('configuration')) {
+          errorMessage = 'Email service configuration error. Please check your EmailJS settings.';
         } else if (error.message.includes('rate limit') || error.message.includes('Rate limit')) {
           errorMessage = 'Too many emails sent. Please wait a moment and try again.';
-        } else if (error.message.includes('invalid') || error.message.includes('Invalid')) {
-          errorMessage = 'Invalid email address or content. Please check and try again.';
         } else if (error.message.includes('Network error')) {
           errorMessage = 'Network connection error. Please check your internet connection and try again.';
-        } else if (error.message.includes('temporarily unavailable')) {
-          errorMessage = 'Email service is temporarily unavailable. Please try again in a few minutes.';
         } else {
           errorMessage = `Send failed: ${error.message}`;
         }
